@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE project>
+ 
+<project name="Break64_d64" basedir="." default="runBatch">
+ 
+    <target name="runBatch">
+    	 <echo>Running batch file to test Break64</echo>
+    	        <exec executable="break64_d64.bat">
+    	            <!-- <arg value="-p someParam" /> -->
+    	        </exec>
+    </target>
+</project>

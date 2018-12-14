@@ -1,0 +1,489 @@
+;------------------------------------------------------------
+;routine writescore on screen 0400
+;------------------------------------------------------------
+!zone Writescore
+Writescore
+		ldx #$00
+-		lda score,x
+		beq exit
+		clc
+		adc #182
++		sta $0400+(40*3)+31,x
+		lda score,x
+		clc
+		adc #198
+		sta $0428+(40*3)+31,x
+++		inx
+		jmp -
+exit 	rts	
+;------------------------------------------------------------
+;routine write hiscore on screen 0400
+;------------------------------------------------------------
+!zone Writehiscore
+Writehiscore
+		ldx #$00
+-		lda hiscore,x
+		beq .exit
+		clc
+		adc #182
++		sta $0400+(40*9)+31,x
+		lda hiscore,x
+		clc
+		adc #198
+		sta $0428+(40*9)+31,x
+++		inx
+		jmp -
+.exit 	rts	
+;------------------------------------------------------------
+;routine write round on screen 0400
+;------------------------------------------------------------	
+!zone Writeround
+Writeround
+		ldx #$00
+-		lda round,x
+		beq .exit
+		clc
+		adc #182
++		sta $0400+(40*15)+33,x
+		lda round,x
+		clc
+		adc #198
+		sta $0428+(40*15)+33,x
+++		inx
+		jmp -
+.exit 	rts	
+;------------------------------------------------------------
+;routine write life on screen 0400
+;------------------------------------------------------------	
+!zone Writelife
+Writelife
+		ldx #$00
+-		lda lives,x
+		beq .exit
+		clc
+		adc #182
++		sta $0400+(40*21)+34,x
+		lda lives,x
+		clc
+		adc #198
+		sta $0428+(40*21)+34,x
+++		inx
+		jmp -
+.exit 	rts
+score   !pet"0000000",0	
+hiscore	!pet"0000000",0	
+round	!pet"000",0	
+lives	!pet"0",0
+!zone Checkscore
+Checkscore
+			lda #$00
+			sta HISCORE
+			lda score+0
+			sec
+			lda hiscore+6
+			sbc score+6
+			lda hiscore+5
+			sbc score+5
+			lda hiscore+4
+			sbc score+4
+			lda hiscore+3
+			sbc score+3
+			lda hiscore+2
+			sbc score+2
+			lda hiscore+1
+			sbc score+1
+			lda hiscore+0
+			sbc score+0
+			bpl +
+			lda score			
+			sta hiscore
+			lda score+1			
+			sta hiscore+1
+			lda score+2			
+			sta hiscore+2
+			lda score+3
+			sta hiscore+3
+			lda score+4
+			sta hiscore+4
+			lda score+5
+			sta hiscore+5
+			lda score+6
+			sta hiscore+6
+			inc HISCORE
++			rts		
+		
+;------------------------------------------------------------
+;routine add point to score
+;------------------------------------------------------------
+!zone AddScore
+AddScore
+		inc score+6
+		ldx #5
+scloop	lda score+6-5,x
+		cmp #$3a
+		bne scok
+		lda #$30
+		sta score+6-5,x
+		inc score+6-6,x
+scok	dex
+		bpl scloop
+		rts
+!zone Clearscore
+Clearscore
+		ldx #$00
+		lda #48
+-		sta score,x
+		inx
+		cpx #7
+		bne -
+		rts
+		
+;------------------------------------------------------------
+;clears the play area of the screen
+;------------------------------------------------------------
+!zone Clearscreen
+Clearscreen
+        ldx #00
+		txa       
+-       sta SCREEN_CHAR,x
+	    sta SCREEN_CHAR+200,x
+        sta SCREEN_CHAR+400,x   
+        sta SCREEN_CHAR+600,x   
+        sta SCREEN_CHAR+800,x       
+        inx
+        cpx #200
+        bne -
+        rts 
+;------------------------------------------------------------
+;init sprite for game
+;------------------------------------------------------------        		
+!zone Initsprite
+Initsprite
+		ldx #9
+		stx $d025		;sprite mcolor 1
+		ldx #15
+		stx $d026       ;sprite mcolor 2
+		ldx #$01
+		stx $d027       ;sprite color 0 USER BAR
+		stx $d028       ;sprite color 1 BALL
+		ldx #$01 
+		stx $d029       ;sprite color 2 Get Ready/Game Over
+		stx $d02a       ;sprite color 3 Get Ready/Game Over
+		stx $d02b       ;sprite color 4 Bonus
+		stx $d02c
+		stx $d02e
+		ldx #%00010011
+		stx $d01c		;active sprite multicolor sprite0,sprite3
+		ldx #%00001111
+		stx $d015		;enable sprite 0,1,2,3
+		ldx #192
+		stx $07f8        ;0 user bar 
+		inx
+		stx $07f9        ;1 ball
+		inx
+		stx $07fa        ;2 ger ready 
+		inx
+		stx $07fb        ;3 get ready
+		ldx #223
+		stx $07fc        ;4 bonus
+	   ;stx $07fd        ;5 poweup
+	    lda #%00001100   ; sprite 2
+	    sta $d01d		 ; expand sprite x
+	    sta $d017        ; expand sprite y
+		lda #90
+		sta $d004
+		lda #120
+		sta $d005
+		sta $d007
+		lda #138
+		sta $d006		
+		rts
+;------------------------------------------------------------
+; prepare/ int irq routine
+;------------------------------------------------------------
+!zone Initirq
+Initirq
+		sei
+        ldy #$7f    ; $7f = %01111111
+        sty $dc0d   ; Turn off CIAs Timer interrupts ($7f = %01111111)
+        sty $dd0d   ; Turn off CIAs Timer interrupts ($7f = %01111111)
+        lda $dc0d   ; by reading $dc0d and $dd0d we cancel all CIA-IRQs in queue/unprocessed
+        lda $dd0d   ; by reading $dc0d and $dd0d we cancel all CIA-IRQs in queue/unprocessed
+        lda #$01    ; Set Interrupt Request Mask...
+        sta $d01a   ; ...we want IRQ by Rasterbeam (%00000001)
+		lda #$1b    
+		sta $d011
+        lda #<irqR   ; point IRQ Vector to our custom irq routine
+        ldx #>irqR
+        sta $0314    ; store in $314/$315
+        stx $0315
+        lda #$00    ; trigger interrupt at row zero
+        sta $d012
+        cli
+        rts         ; clear interrupt disable flag	
+!zone Initirq2
+Initirq2
+		sei
+        ldy #$7f    ; $7f = %01111111
+        sty $dc0d   ; Turn off CIAs Timer interrupts ($7f = %01111111)
+        sty $dd0d   ; Turn off CIAs Timer interrupts ($7f = %01111111)
+        lda $dc0d   ; by reading $dc0d and $dd0d we cancel all CIA-IRQs in queue/unprocessed
+        lda $dd0d   ; by reading $dc0d and $dd0d we cancel all CIA-IRQs in queue/unprocessed
+        lda #$01    ; Set Interrupt Request Mask...
+        sta $d01a   ; ...we want IRQ by Rasterbeam (%00000001)
+        lda #$1b    
+		sta $d011
+        lda #<irqR2   ; point IRQ Vector to our custom irq routine
+        ldx #>irqR2
+        sta $0314    ; store in $314/$315
+        stx $0315
+        lda #$00    ; trigger interrupt at row zero
+        sta $d012
+        cli
+        rts         ; clear interrupt disable flag	
+!zone Resetirq
+Resetirq
+		sei
+		lda #$81
+		sta $dc0d
+		lda #$00
+		sta $d019
+		sta $d01a
+		sta $d418
+		lda #$0b
+		sta $d011
+		lda #$31
+		sta $0314
+		lda #$ea
+		sta $0315
+		lda #$36
+	   	sta $01
+		cli
+		rts
+;-----------------------------------------
+; Show pic by Saul Cross
+;-----------------------------------------
+!zone ShowKoala
+ShowKoala
+			ldx #$00
+			stx $d020
+			ldx #$0b
+			stx $d021
+			ldx #$0b
+            stx $d011 
+			lda #$01
+			sta $d022
+			lda #$02
+			sta $d023 
+            lda #$2b
+            sta $d011 
+            lda #%11011000
+            sta $d016
+            lda #%00111000 ; memory char at $8c00, bitmap at $A000
+            sta $d018
+			lda #%1100001 ;%11000001 %01, 2: Bank #2, $8000-$bFFF, 36864-49151.
+			sta $dd00
+			lda #<koamap
+       		ldy #>koamap
+       		jsr DECRUNCH
+       		lda #<koacol
+       		ldy #>koacol
+       		jsr DECRUNCH
+       		lda #<koavid
+       		ldy #>koavid
+       		jsr DECRUNCH
+       		lda $d011
+            ora #$10
+            sta $d011
+            rts	
+!zone Animate_player
+Animate_player		
+    		lda #$00
+			sta player_anim_pointer
+			lda #192+23
+			sta $07f9
+-			ldx player_anim_pointer
+			lda frame_bat,x
+			sta $07f8
+		    inx
+			cpx #$08
+			beq reset_panim
+			jsr Wait
+			jsr Wait
+			inc player_anim_pointer
+			jmp -
+reset_panim	
+        	ldx #$00
+			stx player_anim_pointer
+			jsr Wait
+			ldx #192
+		    stx $07f8
+		    inx 
+		    stx $07f9
+			rts	
+!zone Createbonus
+Createbonus	
+			lda Bonus
+			bne +
+			jsr Randomnumber
+			and	#$0f
+			tax
+			lda bonus_table,x
+			pha
+			clc
+			adc #210
+			sta $07fc	
+			pla
+			tax
+			lda bonus_color,x
+			sta $d02b
+			lda SPRITE1X
+			sta SPRITE4X
+			lda SPRITE1Y
+			sta SPRITE4Y
+			inc Bonus
++			rts  
+Bonus		!byte 0
+!zone Movebonus
+Movebonus
+			lda SPRITE4Y
+			cmp #250
+			bcs exitBonus
+			clc
+			adc #STEPB
+			sta SPRITE4Y
+			lda COLL
+			and #%00010001
+			cmp #%00010001
+			bne +
+			jsr Updatebonus
++			rts
+exitBonus
+			lda #0
+			sta Bonus
+			sta SPRITE4X
+			sta SPRITE4Y
+			rts      	
+!zone Fire
+Fire		
+			lda $dc00
+			and #$10
+			bne .exit
+-			lda $dc00
+			and #$10
+			beq -
+			lda #$00
+			sta joypad
+.exit		rts
+!zone Padfire
+Padfire
+		;lda #$7f
+		;sta $dc00
+-		lda $dc01
+		cmp #$f7
+		bne .exit
+		lda #$01
+		sta joypad
+		lda #$00
+.exit	rts	
+joypad      !byte 0
+;------------------------------------------------------------
+;generates a sometimes random number
+;------------------------------------------------------------
+!zone Randomnumber
+Randomnumber
+          lda $dc04
+          eor $dc05
+          eor $dd04
+          adc $dd05
+          eor $dd06
+          eor $dd07
+          rts
+;------------------------------------------------------------
+;select vic bank 0
+;------------------------------------------------------------          
+!zone Bank0
+Bank0
+		lda #$03		;VIC Bank 0
+		ora $dd00
+		sta $dd00
+		lda #31
+        sta $d018		; font at bank 0 pos $3800
+		lda #200
+		sta $d016
+		lda #27
+		sta $d011
+		rts
+;------------------------------------------------------------
+;wait for the raster to reach line $f8
+;this is keeping our timing stable
+;------------------------------------------------------------
+!zone Vblank
+Vblank
+	   	 lda $d012
+		 bpl Vblank
+Vblank1
+		 lda $d012
+   	     bmi Vblank1
+         rts 
+!zone Wait
+Wait           
+		jsr Vblank
+	    jsr Vblank
+		jsr Vblank 	
+		rts           		
+!zone Getcontrols
+Getcontrols
+          lda #$ff
+          sta $dc00
+          lda joystick
+          sta prevjoy
+          lda $dc00
+          eor #$ff
+          sta joystick
+          rts  
+!zone Ntsc_check
+Ntsc_check
+--		  lda $d012                 ; simple pal/ntsc check
+-  		  cmp $d012
+  		  beq -
+          bmi --
+          cmp #$37                  ; leaves $37 in a if on pal
+          bne +
+          lda #$00
+          sta ntsc_music
+          rts
++   	  lda #$01
+		  sta ntsc_music
+		  rts   
+;------------------------------
+;Clear sid register 
+;------------------------------
+!zone ClearSid
+ClearSid
+	    ldx #$18
+		lda #$00
+-       sta $d400,X
+        dex
+        bpl -
+        rts	
+       
+joystick    
+ 		  !byte 0
+prevjoy    
+  		  !byte 0 
+player_anim_pointer    
+	      !byte 0
+player_anim_delay 
+          !byte 0  		
+frame_bat
+		  !byte 216,217,218,219,220,221,222,223
+bonus_table
+		  !byte CHERRY,ICELOLLY,APPLE,STRAWBERRY,ICELOLLY
+		  !byte ICELOLLY,APPLE,STRAWBERRY,ICELOLLY,CHERRY
+		  !byte APPLE,STRAWBERRY,ICELOLLY,CHERRY,ICELOLLY
+		  !byte STRAWBERRY	
+bonus_color
+		  !byte 2,8,5,2,4
+					  	  
+		                

@@ -1,0 +1,104 @@
+SPRITE0X        = $D000 ;bat
+SPRITE0Y        = $D001 ;bat
+;--------------------------------
+SPRITE1X        = $D002 ;ball
+SPRITE1Y        = $D003 ;ball
+;--------------------------------
+SPRITE2X        = $D004 ;gameover/getready/exit
+SPRITE2Y        = $D005 ;gameover/getready/exit
+SPRITE3X        = $D006 ;gameover/getready/exit
+SPRITE3Y        = $D007 ;gameover/getready/exit
+;--------------------------------
+SPRITE4X		= $D008 ;bonus
+SPRITE4Y		= $D009 ;bonus
+;--------------------------------
+SPRITE5X		= $D00A ; cursor select
+SPRITE5Y		= $D00B
+;--------------------------------
+RASTER      = $D012
+SPENABLE    = $D015
+SPMULTIC    = $D01C
+SPX_EXP     = $D01D
+SP_SCOLL    = $D01E
+BORDER_COL0 = $D020
+BACK_COL0   = $D021
+BACK_COL1   = $D022
+BACK_COL2   = $D023
+SP_MCOL0    = $D025
+SP_MCOL1    = $D026
+SP0_COL     = $D027
+SP1_COL     = $D028
+SP2_COL     = $D029
+PUT_CHAR    = $E716    ; put a char in the screen
+SCREEN      = $E544    ; clean the screen
+SET_COOR    = $E50C    ; set x/y coord
+GET_COOR    = $E513    ; get x/y coord
+SCREEN_CHAR = $0400
+LEFTLIM     = 32       ; left limit value
+RIGHTLIM    = 224
+LIFE	    =  5       ; starting life
+TMPX        = $0380      ; temp value for x position
+TMPY        = $0381     ; temp value for y position
+TAKE        = $0382    ; take the ball flag: 0 no, 1 to take, 2 take ball, 3=take ball, but after go to 0
+RELEASE     = $0383    ; when 0 release the ball even if it is with TAKE=2
+TOREST      = $0384    ; 1= music 0 have to be restarted
+CFROM       = $0385
+CTO         = $0386
+DIED        = $0387      ; 1 = died  
+TMP         = $0388
+COLL        = $0389     ; collision flag value
+VX          = $038a     ; ball velocity with x direction
+SCR         = $038b     ; actual screen
+PASSED      = $038c     ; ship is passed
+live        = $038d     ; actual number of life
+VY          = $038e     ; ball velocity with y direction
+BLOCKS      = $038f     ; number of blocks remaining in this screen 
+DIRECTION   = $0390     ; direction of the ship: 4 sx, 8 dx
+FLIP        = $0391     ; flip: 0 normal, 1 slow
+TEMP        = $0392
+GO          = $0393     ; 1 = go with the game
+DELAY       = $0394     ; delay for each frame
+COLOREXIT   = $0395
+PATTERNTIME = $0396
+DIRECTION1  = $0397
+PATT		= $0398
+HISCORE     = $0399
+MAXDELAY    = 2         ; frame delay
+BLUE        = 154       ;  1+blue
+L_RIGHT     = 28        ; rigth limit of the area
+STEP        = $0378     ; step of the bar
+STEPA       = $0379     ; step of the ball
+STEPB       = 2         ; step of the bonus
+MAXSCR      = 15        ; max number of screen 
+JOY_UP      = 1
+JOY_DOWN    = 2
+JOY_LEFT    = 4
+JOY_RIGHT   = 8
+JOY_FIRE    = 16
+; SPRITE BONUS 
+POWERUP		= 209
+CHERRY		= 0 ; 210 cherry
+ORANGE      = 1 ; 211 ICELOLLY
+APPLE		= 2 ; 212 CHERRY
+STRAWBERRY	= 3 ; 213 strawberry
+ICELOLLY	= 4 ; 214 ice lolly
+
+    !macro align8 {
+		* = (*+$7) & $fff8
+	} 
+	
+    !macro align16 {
+		* = (*+$f) & $fff0
+	}
+	
+	!macro align64 {
+		* = (*+$3f) & $ff40
+	}
+
+	!macro align256 {
+		* = (*+$ff) & $ff00
+	}
+
+	!macro align512 {
+		* = (*+$1ff) & $fe00
+	} 

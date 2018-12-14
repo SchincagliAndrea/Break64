@@ -1,0 +1,1069 @@
+ !sl "var"
+;-----------------------------
+;	   	SIMPLE BREAKOUT
+;          by Wanax
+; Game graphics and bitmap by Saul Cross
+; Music by Aldo Chiummo
+; Charset Smasher/Saul Cross
+; Testing Antonello Molella
+;
+;------------------------------
+        !source "Include.a"	
+        *= $0801
+		!byte $0b,$08
+		!word 2015
+		!byte $9e
+		!text "2061"
+		!byte 0,0,0
+		lda #$01
+		jsr $e536
+		jsr Printloadscore
+		jsr Highscore_load
+		jsr Copyscore
+Go		sei
+		cld
+		ldx #$ff
+		txs
+		lda #$0b
+		sta $d011
+		jsr ClearSid
+	   	jsr Resetirq
+		jsr Clearscore
+		jsr Clearscreen		; clear screen at $0400
+		jsr ShowKoala
+-		jsr Fire
+		beq Startgame
+		jmp -
+Startgame
+        lda #$00
+        sta $d020
+        sta $d021
+        sta $d015
+        sta Colornum
+        sta colorchange
+        sta Bonus
+        sta ntsc_music
+        sta HISCORE
+        lda #$02 ; 2 normal music 4 advanced music
+        sta Gamemusic
+        jsr Ntsc_check
+        jsr Bank0
+        jsr Gametile
+        jsr Preparegamefont
+        jsr Printgamescreen
+		jsr Background
+		jsr Initsprite
+		lda #MAXDELAY
+		sta DELAY
+MainLoop 
+		lda #LIFE
+        sta live 
+        clc 
+        adc #48
+        sta lives                 
+lv      lda #00; start level
+MainLoop2
+		cmp #15
+		bcc +
+		ldx #4
+		stx Gamemusic	
++       sta SCR
+        cmp #40
+        bcs ++++
+        cmp #30
+        bcs +++
+        cmp #20
+        bcs ++
+        cmp #10
+        bcc +
+        lda #49
+        sta round+1
+        lda SCR
+		sec
+		sbc #10
++       clc
+        adc #48
+        sta round+2
+        jmp ScreenLoop       ; first screen to show (0)                          
+++      lda #50
+        sta round+1
+        lda SCR
+		sec
+		sbc #20
++       clc
+        adc #48
+        sta round+2
+        jmp ScreenLoop
++++     lda #51
+        sta round+1
+        lda SCR
+		sec
+		sbc #30
+        clc
+        adc #48
+        sta round+2 
+        jmp ScreenLoop
+++++    lda #52
+        sta round+1
+        lda SCR
+		sec
+		sbc #40
+        clc
+        adc #48
+        sta round+2 
+ScreenLoop
+        lda colorchange
+        cmp #0
+        beq col0
+        cmp #1
+        beq col1
+    
+col0	inc colorchange
+		lda #6
+		sta backcolor+1
+		lda #31
+		sta restoreBack+1
+		bne +
+col1    lda #$00
+		sta colorchange
+		lda #2
+		sta backcolor+1	
+		lda #28
+		sta restoreBack+1	
++		jsr Colorbackground
+		jsr Makescreen  
+		jsr Initirq	
+		lda #$01    ; jingle del get ready
+		jsr $1000   ; --------------------
+		jsr Getready
+;------------------------------------------
+;------------------------------------------
+;------------- GAME LOOP ------------------
+;------------------------------------------	
+loopx	
+		lda $d01d
+		and #%11111110
+		sta $d01d	
+		ldx #0                     ; game is not yet started
+        stx GO
+        stx PASSED                 ; ship is not passed
+        stx DIED
+        stx FLIP 
+        stx player_anim_pointer
+		stx player_anim_delay
+		stx PATTERNTIME  
+		stx Expandtime
+		stx Takeball
+		stx Takeballtime
+		stx Speedslow
+		stx Speedtime
+		stx Speedfast
+		stx Speedtimepad
+		ldx #$05
+		stx STEP                   ; step of the bar....
+		ldx #$04
+		stx STEPA
+		jsr Prepare_pattern
+		jsr exitBonus
+ 	    jsr Position
+		jsr Writescore
+		jsr Writehiscore
+		jsr Writeround
+		jsr Writelife
+.loop1 
+		lda joypad
+		bne pfire
+		jsr Fire
+		beq +
+		jmp .loop2
+pfire
+		jsr Padfire
+		beq +		
+.loop2
+		jsr Vblank
+		jsr Vblank
+		jsr Usermove
+		ldx padpos1
+		lda joypad
+		bne zz
+		ldx SPRITE0X
+zz		stx SPRITE1X
+		jmp .loop1
++		lda #%00010011 ; bat, ball, bonus sprite : )))))
+		sta $d015
+		jsr ClearSid
+		lda Gamemusic  ; musica del gioco 2= 1 musica, 4= 2 musica
+		jsr $1000 ;------------------
+	    inc GO
+-		lda DIED
+		beq .cont1
+		dec GO       ; stop move user bar
+		lda Unlimitedlive
+		bne +
+		dec lives
++		lda live
+		bne .cont0
+		jsr Animate_player ; explosion bat
+		jsr Writelife
+		jsr Position
+		jsr Gameover      ;2 game over 3 game over
+		ldx #%00001111
+		stx $d015
+		lda #$03   ; jingle del game over
+		jsr $1000  ;---------------------
+        jsr Checkscore
+        jsr Writehiscore
+.loopx
+		lda joypad
+		bne pfiregover
+		jsr Fire
+		beq +
+		jmp .loopx
+pfiregover
+		jsr Padfire
+		beq +		
+		jmp .loopx
+;------------------------------------------------------
+; Controla se HISCORE è ad 1 visualizza la schermata
+; per inserire il nome utente che poi verrà salvato
+; su disko
+;------------------------------------------------------
+Hiscoreendgameend
++       lda HISCORE
+       	beq +;.loop
+Hiscoreendgame
+		
+    	ldx #%00000011
+		stx $d015
+		lda #$02
+		sta PATT
+		lda #6
+		sta backcolor+1	
+		jsr Prepare_pattern
+        jsr Background1
+        jsr Colorbackground
+        jsr Hiscoremenu
+        jmp Menuscore 
++       jsr Endlevel35
+		jmp Go		
+.cont0	
+		jsr exitBonus
+		jsr Animate_player
+		jsr Position
+		lda #$01
+		jsr $1000
+		jmp loopx
+.cont1	jmp -
+		rts
+;--------------------------------
+; set initial ship/ball position
+;--------------------------------  		
+!zone Position
+Position
+		lda #228+5
+		sta SPRITE0Y	;SPRITE0Y user bar
+		sta SPRITE1Y	;SPRITE1Y ball
+		lda #130
+		sta SPRITE0X    ;SPRITE0X user bar
+		sta SPRITE1X    ;SPRITE1X ball
+		lda #%00001111
+        sta SPENABLE
+        lda STEPA
+        sta VX      
+        lda #255
+        sec
+        sbc STEPA  
+        sta VY
+		rts
+!zone irqR
+irqR   	lda $d019
+		and #$01
+		beq .exit1
+		sta $d019
+		lda ntsc_music
+		beq +		; se zero play music pal
+fixit	lda #$05
+		beq reset
+		dec fixit+1
+		jsr $1003
+		jmp .exit1
+reset	lda #$05
+		sta fixit+1
+		bne .exit1		
++		jsr $1003
+.exit1  
+		lda GO
+		beq exitIrq
+		dec DELAY
+		bne exitIrq
+		lda #MAXDELAY
+        sta DELAY
+        jsr GET_COOR
+        stx Xcoord
+        sty Ycoord 
+		lda PATTERNTIME
+		eor #$01
+		sta PATTERNTIME
+		bne ++
+		lda VX
+		bpl +
+        jsr Shift_left_pattern_A
+        lda DIRECTION
+        bne .down
+        jsr Shift_up_pattern_A 
+		jmp ++
+.down
+		jsr Shift_down_pattern_A
+		jmp ++				
++       jsr Shift_right_pattern_A	
+		lda DIRECTION1
+		bne .up
+     	jsr Shift_down_pattern_A
+		jmp ++
+.up     jsr Shift_up_pattern_A		
+;----------------------------------------------------
+++		lda SP_SCOLL    
+		sta COLL
+exitIrq_
+		lda Speedslow
+		beq .fast
+		jsr Decspeedtime
+		jmp +
+.fast
+		lda Speedfast
+		beq +
+		jsr Incspeedtime
++		jsr Ballmove 
+		jsr Movebonus
+        ldx Xcoord
+        ldy Ycoord 
+        jsr SET_COOR
+        
+exitIrq 
+        lda GO
+		beq +	
+		jsr Usermove	
++       lda $d015      ;#%00010011 ; bat, ball, bonus sprite : )))))
+		cmp #%00010011
+		beq +
+		inc Colornum
+		ldx Colornum
+		lda Colorwash,x
+		sta COLOREXIT
+		sta $d029
+		sta $d02a
+.exit	lda Colornum
+		cmp #11
+		bne +	
+		lda #$00
+		sta Colornum	
++       lda $dc0d
+		sta $dd0d
+		jmp $ea81
+ntsc_music
+		!byte 0
+Xcoord	
+		!byte 0
+Ycoord  
+		!byte 0
+;--------------------------------------------------
+; routine gestione joystick, e movimento user bar
+;--------------------------------------------------		
+!zone Usermove
+Usermove
+		lda joypad
+		beq +	
+  		jsr Paddlemove
+  		rts
++		jsr Getcontrols
+left		
+		lda joystick
+		and #JOY_LEFT
+		beq right
+		lda SPRITE0X
+        cmp #LEFTLIM
+        bcc +
+		ldx STEP
+-		dec SPRITE0X
+		dex
+		bne -
++		rts
+right
+		lda joystick
+		and #JOY_RIGHT
+		beq .exit
+		lda $d01d
+		and #$01
+		beq +
+		lda SPRITE0X
+		cmp #$c8
+		bcs .exit
++		lda SPRITE0X
+        cmp #RIGHTLIM
+        bcs .exit
+        ldx STEP
+-      	inc SPRITE0X
+       	dex
+       	bne -
+.exit   rts 
+;---------------------------------------------------
+; routine che muove la palla e cambia direzzione
+;---------------------------------------------------
+!zone Ballmove
+Ballmove	
+		ldy SPRITE1Y
+		ldx SPRITE1X
+		cpx #25
+		bcs testDX
+		lda #25
+		sta SPRITE1X
+		jsr ChangeDirX
+		bne testOrriz
+testDX
+		cpx #232
+		bcc testOrriz
+		lda #232
+		sta SPRITE1X
+		jsr ChangeDirX
+testOrriz
+		cpy #54		
+		bcs testShip
+		lda #$01
+		sta DIRECTION
+		lda #$00
+		sta DIRECTION1
+		jsr ChangeDirY
+testShip
+		lda COLL
+	    and #3
+        cmp #3
+        bne exitTS
+        jsr Takeballs
+		lda Takeball
+		beq +
+	    jsr Waittakeball
+		rts		
++		lda SP_SCOLL
+        lda #$00
+		sta DIRECTION
+		lda #$01
+		sta DIRECTION1
+contDir
+		lda FLIP
+		lsr
+		bcs lowVel
+		lda #255
+		sec
+		sbc STEPA
+		bne staVel
+lowVel			
+		lda #255
+		sec
+		sbc STEPA
+		adc #2
+staVel
+		sta VY
+		lda SPRITE1Y
+		clc
+		adc VY
+		sta SPRITE1Y
+testCSX
+		lda SPRITE0X
+		sbc SPRITE1X
+		sbc #5 
+		bmi testCDX
+		lda VX
+		bmi exitTS
+chDX
+		jsr ChangeDirX
+		jmp exitTS
+testCDX
+		lda SPRITE1X
+		sbc SPRITE0X
+		lda $d01d
+		and #$01
+		beq +
+		sbc #25     ; controllo 
+		bmi exitTS  ; se lo sprite è espanso per cambio di percorso
+		lda  VX     ;
+        bpl  exitTS ;
+        jmp  chDX   ;
++		sbc #10
+		bmi exitTS
+		lda VX
+		bpl exitTS
+		jmp chDX
+exitTS
+		lda	SPRITE1X
+		clc
+		adc VX
+		sta TMPX
+		lda SPRITE1Y
+		clc
+		adc VY
+		tay
+		sty SPRITE1Y
+		lda TMPX
+		sta SPRITE1X
+		cpy #240
+		bcs died
+		ldy SPRITE1X
+		ldx SPRITE1Y
+		jsr blockCollision
+		lda collision
+		beq TSA1
+		cmp #$0f
+		beq TSA1
+		cmp #$09
+		beq TSA1
+		cmp #$06
+		beq TSA1
+		cmp #$02
+		beq TSA1
+		cmp #$0b
+		bne rback
+		jsr restoreBlock
+		jmp srback
+TSA1    rts		
+Collision 
+		!byte 0
+;----------------------------------------
+; if collision with bottom border deid
+;----------------------------------------
+!zone died
+died
+		lda #1
+		sta DIED
+		lda Unlimitedlive
+		bne +
+		dec live 
++		rts		
+rback   lda #$01
+		sta DIRECTION
+		jsr restoreBack
+srback
+		ldy #10
+-		jsr AddScore
+		dey
+		bne -
+		jsr Writescore
+		ldy #0
+		inc $c200
+		jsr Createbonus
+		dec BLOCKS
+		bne goChange
+		inc PASSED
+		dec GO
+		jsr Position
+		jsr Exitsprite
+		lda $d01d
+		and #%11111110
+		sta $d01d
+.loop2		
+		jsr Vblank
+		;jsr Vblank
+		jsr Colorram
+		jsr Usermove 
+		lda SPRITE0X
+		sta SPRITE1X
+		lda SPRITE0Y
+		sta SPRITE1Y
+		lda SPRITE0X
+		cmp #220
+		bcc +
+		cmp #225
+		bcc nextscreen
++		lda SPRITE0X
+		cmp #30
+		bcc +
+		cmp #38
+		bcc nextscreen
++		jmp .loop2
+nextscreen	
+		jsr Background       
+		jsr Colorbackground	
+		lda #$0f
+		jsr Coloram1
+		lda #$00
+		sta $c200
+		lda SCR
+		clc
+		adc #$01
+		cmp #36
+		bne +
+		jsr Checkscore
+        jsr Writehiscore
+		jmp Hiscoreendgameend
++		jmp MainLoop2
+		iny
+goChange
+		jsr ChangeDirY
+		lda #1
+		sta DIRECTION1
+exitTSA
+		rts		
+ChangeDirX
+		lda VX
+		eor #$ff
+		sec
+		adc #0
+		sta VX
+		rts
+ChangeDirY
+		lda VY
+		eor #$ff
+		sec
+		adc #0
+		sta VY
+		rts	
+!zone Colorram	
+Colorram	
+		lda COLOREXIT
+Coloram1		
+		sta $d800+(40*22)
+		sta $d800+(40*23)
+		sta $d800+(40*24)
+		sta $d800+(40*25)
+		sta $d800+(40*22)+28
+		sta $d800+(40*23)+28
+		sta $d800+(40*24)+28
+		sta $d800+(40*25)+28
+		rts
+!zone Exitsprite
+Exitsprite
+		ldx #198
+		stx $07fa        ;2 exit sprite
+		inx
+		stx $07fb        ;3 exit sprite
+		rts
+!zone Getready
+Getready
+		ldx #194
+		stx $07fa        ;2 getready sprite
+		inx
+		stx $07fb        ;3 getready sprite
+		rts
+!zone Gameover
+Gameover
+		ldx #196
+		stx $07fa        ;2 gameover sprite
+		inx
+		stx $07fb        ;3 gameover sprite
+		lda $d01d
+		and #%11111110
+		sta $d01d 
+		rts	
+;----------------------------------------------------------------------------
+; controlla se c'e' collisione con una mattonella, legge il colore di fondo
+;----------------------------------------------------------------------------
+!zone blockCollision
+blockCollision
+		txa
+		pha
+		lda VY
+		bpl +
+		pla
+		sec
+		sbc #48;40
+		jmp ++
++       pla
+		sec
+		sbc #40	;48	
+++		lsr
+		lsr
+		lsr
+		tax
+		tya
+		pha
+		lda VY
+		bpl +
+		pla
+		sec
+		sbc #14;14
+		jmp ++
++       pla   
+        sec
+		sbc #10
+++		lsr
+		lsr
+		lsr
+		tay
+		jsr SET_COOR
+		lda ($f3),y
+		and #$0f
+		sta collision        ; blue color
+	    rts 
+		lda $f4
+		sec
+		sbc #$d4
+		sta $f4
+		lda $f3
+		sec
+		sbc #40
+		sta $f3
+		lda #$10
+		sta ($f3),y
+		rts
+collision
+		!byte 0
+restoreBlock
+		lda #$01
+		sta DIRECTION
+		lda #158
+		jsr PUT_CHAR
+		tya
+another_
+		dey
+		beq isPos1_
+		dey
+		beq isPos2_
+		dey
+		beq isPos3_
+		bne another_
+isPos1_
+        tay
+        bne  writeB_     
+isPos2_
+        tay
+        dey
+        bne  writeB_     
+isPos3_
+        tay
+        dey
+        dey
+writeB_                           ; write the block again in yellow
+        jsr  SET_COOR
+        lda  #SC_LB
+        jsr  PUT_CHAR
+        iny
+        lda  #SC_CB
+        jsr  PUT_CHAR
+        iny
+        lda  #SC_RB
+        jsr  PUT_CHAR
+        rts      
+restoreBack
+        lda  #31;BLUE
+        jsr  PUT_CHAR               ; change background color 
+        tya          
+another     
+        dey
+        beq  isPos1     
+        dey
+        beq  isPos2    
+        dey
+        beq  isPos3
+        bne  another    
+isPos1
+        tay
+        bne  writeB      
+isPos2
+        tay
+        dey
+        bne  writeB     
+isPos3
+        tay
+        dey
+        dey
+writeB
+        jsr  putBack
+        iny
+        jsr  putBack
+        iny
+        jsr  putBack
+        rts                              													
+putBack
+        tya
+        pha
+        jsr  SET_COOR
+        dey                         ; fisrt is not to count
+
+loopDec                          ; calculate 0-2 set
+        cpy  #3
+        bmi  isOk
+        dey
+        dey
+        dey
+        jmp  loopDec
+isOk
+        sty  TMP
+        txa
+        lsr
+        bcc  skip1
+        lda  SC_11
+        bne  skip2
+skip1
+        lda  SC_21
+skip2
+        clc
+        adc  TMP
+        jsr  PUT_CHAR
+        pla
+        tay
+        rts
+;---------------------------------------
+; create a line that go from down to up 
+;---------------------------------------     
+scLoop:
+        iny
+        iny
+        iny
+        dex
+        jsr  putBlock
+        dec  TMP
+        bne  scLoop
+        rts     
+; create a line that go from up to down 
+scLoop_:
+        dey
+        dey
+        dey
+        dex
+        jsr  putBlock
+        dec  TMP
+        bne  scLoop_
+        rts             
+; create a line 
+scLoop__:
+        iny
+        iny
+        iny
+        inx
+        jsr  putBlock
+        dec  TMP
+        bne  scLoop__
+        rts       		
+; write orriz. block until last coloumn      
+orrizBlock:      
+loopB1:      
+        jsr  putBlock
+        iny
+        iny
+        iny
+        cpy  #28
+        bne  loopB1      
+        rts
+; write vertical block until some limit            
+vertBlock:
+loopB2:
+        jsr  putBlock
+        inx
+        cpx  #17
+        bne  loopB2
+        rts
+SC_LB = 35
+SC_CB = 36
+SC_RB = 37               
+; put a block starting on the passed X/Y position and A color      
+putBlock:
+        pha
+        pha
+        jsr  SET_COOR
+        pla
+        jsr  PUT_CHAR
+        lda  #SC_LB
+        jsr  PUT_CHAR
+        lda  #SC_CB
+        jsr  PUT_CHAR
+        lda  #SC_RB
+        jsr  PUT_CHAR
+        pla
+        rts 
+hiscoremenu
+		!binary "level\hiscore.bin"  ; load hiscore screen	    
+SC_11   
+		!byte 0
+SC_21  
+		!byte 0
+;---------------------------------------
+; load tune Breakout by Ald/Atlantis
+;--------------------------------------
+		*=$1000
+music   !binary "sid\break366_tune2_tom_OK.sid",,$7e ; load tune
+
+;-------------------------------------------------
+; include sorce code and bitmap
+;-------------------------------------------------        		
+floppy
+		!binary "floppy.prg",128+16,2		
+koavid 
+		!binary "bm_videomem.bin"  ; load bitmap video mem
+fontgame 
+ 		!binary "font.bin"
+;--------------------------------
+; load sprite
+;--------------------------------
+		*=$3000
+sprite  !binary "spritesv3.prg",,2	; load game sprite	
+;--------------------------------
+; spazio riservato ai font
+;--------------------------------
+		*=$3800
+font	!binary "fontdummy.prg",,2 ;    
+;-----------------------------------
+; spazio per la bitmap multicolor 
+;-----------------------------------
+		!source "utility.a"
+		!source "gametile.a"
+		!source "bongo.a"
+		!source "file_utility.a"
+		!source "bonus.a"
+		!source "screen.a" 
+		!source "patterns.a"
+		!source "paddle.a"	
+;------------------------------------
+; load gamemap and color map level
+;------------------------------------  	
+fontmenu
+		!binary "fontmenu.bin"	
+menumap1024
+		!binary "menumap.bin"
+credit
+		!binary "credit.raw"
+cmapmenu
+		!binary "colormenu.raw"					 		    
+cmap	
+ 		!binary "cmap.prg",,2		
+map		
+		!binary "map.prg",,2
+koamap  
+		!binary "bm_bitmap.bin" ; load bit map game break64
+pattern 
+		!binary "pattern.prg",,2
+koacol 
+	    !binary "bm_colormem.bin"	 ; load bitmap color
+color   
+		!binary "level\color.raw"    ;load color for game tile		
+		!source "gameover.a"	      
+Colorwash
+		!byte 11,11,12,12,1,1,1,12,12,11,11
+Colornum
+        !byte 0
+Gamemusic
+		!byte 0        
+colorchange
+		!byte 0             
+maxblock 
+    ;level00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16, 17,18,19,20,21,22,23,24,25,26,27, 28,29
+	!byte 72,54,67,62,70,90,75,52,67,95,98,50,46,75,71,52,73,135,97,91,64,87,65,76,69,104,65,63,118,77
+	;level30 31 32 33 34 35 36 37 38 39
+	!byte 62,79,72,60,90,94	       		
+; low pointers table for screen creation routines
+levelLO
+   
+  !byte <level00
+  !byte <level01
+  !byte <level02
+  !byte <level03
+  !byte <level04
+  !byte <level05
+  !byte <level06
+  !byte <level07
+  !byte <level08
+  !byte <level09
+  !byte <level10
+  !byte <level11
+  !byte <level12
+  !byte <level13
+  !byte <level14
+  !byte <level15
+  !byte <level16
+  !byte <level17
+  !byte <level18
+  !byte <level19
+  !byte <level20
+  !byte <level21
+  !byte <level22
+  !byte <level23
+  !byte <level24
+  !byte <level25
+  !byte <level26
+  !byte <level27
+  !byte <level28
+  !byte <level29
+  !byte <level30
+  !byte <level31
+  !byte <level32
+  !byte <level33
+  !byte <level34
+  !byte <level35
+  
+; high pointers table for screen creation routines
+levelHI
+
+  !byte >level00
+  !byte >level01
+  !byte >level02
+  !byte >level03
+  !byte >level04
+  !byte >level05
+  !byte >level06
+  !byte >level07
+  !byte >level08
+  !byte >level09
+  !byte >level10
+  !byte >level11  
+  !byte >level12 
+  !byte >level13
+  !byte >level14
+  !byte >level15
+  !byte >level16
+  !byte >level17
+  !byte >level18
+  !byte >level19
+  !byte >level20
+  !byte >level21
+  !byte >level22
+  !byte >level23
+  !byte >level24
+  !byte >level25
+  !byte >level26
+  !byte >level27
+  !byte >level28
+  !byte >level29
+  !byte >level30
+  !byte >level31
+  !byte >level32
+  !byte >level33
+  !byte >level34
+  !byte >level35
+  
+;-------------------------------------------
+; livelli di gioco
+;-------------------------------------------
+level00	!binary "level\level00.bin"
+level01	!binary "level\level01.bin"
+level02	!binary "level\level02.bin"
+level03	!binary "level\level03.bin"
+level04	!binary "level\level04.bin"
+level05	!binary "level\level05.bin"
+level06	!binary "level\level06.bin"
+level07	!binary "level\level07.bin"
+level08	!binary "level\level08.bin"
+level09	!binary "level\level09.bin"
+level10	!binary "level\level10.bin"
+level11	!binary "level\level11.bin"
+level12	!binary "level\level12.bin"
+level13	!binary "level\level13.bin"
+level14	!binary "level\level14.bin"
+level15	!binary "level\level15.bin"
+level16	!binary "level\level16.bin"
+level17	!binary "level\level17.bin"
+level18	!binary "level\level18.bin"
+level19	!binary "level\level19.bin"
+level20	!binary "level\level20.bin"
+level21	!binary "level\level21.bin"
+level22	!binary "level\level22.bin"
+level23	!binary "level\level23.bin"
+level24	!binary "level\level24.bin"
+level25	!binary "level\level25.bin"
+level26	!binary "level\level26.bin"
+level27	!binary "level\level27.bin"
+level28	!binary "level\level28.bin"
+level29	!binary "level\level29.bin"
+level30	!binary "level\level30.bin"
+level31	!binary "level\level31.bin"
+level32	!binary "level\level32.bin"
+level33	!binary "level\level33.bin"
+level34	!binary "level\level34.bin"
+level35	!binary "level\level35.bin"

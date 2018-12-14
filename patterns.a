@@ -1,0 +1,144 @@
+PatternA0 = font+(41*8)
+PatternA1 = font+(42*8)
+PatternA2 = font+(43*8)
+PatternB0 = font+(44*8)
+PatternB1 = font+(45*8)
+PatternB2 = font+(46*8)
+!zone Shift_left_pattern_A
+Shift_left_pattern_A
+		ldx #$00
+-		lda PatternA2,x
+		asl
+		rol PatternA1,x
+		rol PatternA0,x
+		rol PatternA2,x		
+		lda PatternB2,x
+		asl
+		rol PatternB1,x
+		rol PatternB0,x
+		rol PatternB2,x
+		inx
+		cpx #$08
+		bne -
+		rts
+!zone Shift_right_pattern_A
+Shift_right_pattern_A
+		ldx #$00
+-		lda PatternA0,x
+		lsr
+		ror PatternA1,x
+		ror PatternA2,x
+		ror PatternA0,x		
+		lda PatternB0,x
+		lsr
+		ror PatternB1,x
+		ror PatternB2,x
+		ror PatternB0,x
+		inx
+		cpx #$08
+		bne -
+		rts
+!zone Shift_up_pattern_A
+Shift_up_pattern_A		
+		lda PatternA0
+		pha
+		lda PatternA1
+		pha
+		lda PatternA2
+		pha
+		ldx #$00
+-		lda PatternA0+1,x
+		sta PatternA0,x
+		lda PatternA1+1,x
+		sta PatternA1,x
+		lda PatternA2+1,x
+		sta PatternA2,x
+		inx
+		cpx #$07
+		bne -
+        lda PatternB0
+        sta PatternA0+7
+        lda PatternB1
+        sta PatternA1+7
+        lda PatternB2
+        sta PatternA2+7        
+        ldx #$00
+-       lda PatternB0+1,x
+        sta PatternB0,x
+        lda PatternB1+1,x
+        sta PatternB1,x
+        lda PatternB2+1,x
+        sta PatternB2,x
+		inx
+		cpx #$07
+		bne -		
+		pla
+		sta PatternB2+7
+		pla
+		sta PatternB1+7
+		pla
+		sta PatternB0+7
+		rts		
+!zone Shift_down_pattern_A
+Shift_down_pattern_A		
+		lda PatternA0+7
+		pha
+		lda PatternA1+7
+		pha
+		lda PatternA2+7
+		pha
+		ldx #$06
+-		lda PatternA0,x
+		sta PatternA0+1,x
+		lda PatternA1,x
+		sta PatternA1+1,x
+		lda PatternA2,x
+		sta PatternA2+1,x
+		dex
+		bpl -
+        lda PatternB0+7
+        sta PatternA0
+        lda PatternB1+7
+        sta PatternA1
+        lda PatternB2+7
+        sta PatternA2        
+        ldx #$06
+-       lda PatternB0,x
+        sta PatternB0+1,x
+        lda PatternB1,x
+        sta PatternB1+1,x
+        lda PatternB2,x
+        sta PatternB2+1,x
+		dex
+		bpl -		
+		pla
+		sta PatternB2
+		pla
+		sta PatternB1
+		pla
+		sta PatternB0
+		rts	
+!zone Prepare_pattern	
+Prepare_pattern
+		lda #<pattern
+		sta .cont+1
+		lda #>pattern
+		sta .cont+2
+ 		ldy #$00
+ 		ldx PATT
+ 		lda pattern_table_lo,x
+        tax  
+.cont  
+-		lda pattern,x
+		sta PatternA0,y
+		inx
+		bne +
+		inc .cont+2
++		iny
+		cpy #48
+		bne -
+		rts
+
+pattern_table_lo
+         ;     0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
+  		!byte 000,048,096,144,192,240,048,096,144,192,240,048,096,144,192,240

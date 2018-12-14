@@ -1,0 +1,36 @@
+
+!zone Paddlemove
+Paddlemove
+		lda padpos1
+		sta padpos2
+		lda $d419
+		eor #$ff
+		clc
+		cmp #$20
+		bcs padx20
+		lda #$20
+padx20
+		sta padpos1
+		lda $d01d
+		and #$01
+		beq +
+		lda padpos1
+		clc
+		cmp #$c8
+		bcc padposxe0
+		lda #$c8
+		sta padpos1
+		bne padposxe0
++		lda padpos1
+		clc
+		cmp #$e0
+		bcc padposxe0
+		lda #$e0
+ 		sta padpos1
+padposxe0
+        sta SPRITE0X
+		rts		
+padpos1
+	    !byte 0  
+padpos2	
+		!byte 0       		

@@ -1,0 +1,389 @@
+!zone Gametile
+Gametile
+		lda #$0b
+		sta $d011
+		lda #%00010000
+		sta $d015
+		sta $d01c
+		ldx #9
+		stx $d025		;sprite mcolor 1
+		ldx #15
+		stx $d026       ;sprite mcolor 2
+	    jsr Preparebonus
+		jsr Preparemenufont
+		jsr Printmenuscreen
+		jsr Copycredit
+		lda #$00
+		sta parallax
+		sta colorvar
+		tax
+		tay
+		jsr $1000
+		sei
+        ldy #$7f    ; $7f = %01111111
+        sty $dc0d   ; Turn off CIAs Timer interrupts ($7f = %01111111)
+        sty $dd0d   ; Turn off CIAs Timer interrupts ($7f = %01111111)
+        lda $dc0d   ; by reading $dc0d and $dd0d we cancel all CIA-IRQs in queue/unprocessed
+        lda $dd0d   ; by reading $dc0d and $dd0d we cancel all CIA-IRQs in queue/unprocessed
+        lda #$01    ; Set Interrupt Request Mask...
+        sta $d01a   ; ...we want IRQ by Rasterbeam (%00000001)
+		lda #$1b    
+		sta $d011
+        lda #<gametile   ; point IRQ Vector to our custom irq routine
+        ldx #>gametile
+        sta $0314    ; store in $314/$315
+        stx $0315
+        lda #$00    ; trigger interrupt at row zero
+        sta $d012
+        cli
+.loopmenu        
+        lda #$00
+		sta sync1
+		lda sync1
+.sync1	cmp sync1
+		beq .sync1
+		;jsr Cheatcode
+		jsr Shiftpattern
+		lda parallax
+		cmp #$00
+		beq _left
+		cmp #$01
+		beq _right
+		cmp #$02
+		beq _up
+		cmp #$03
+		beq _down
+		cmp #$04
+		beq _rot0		
+		cmp #$05
+		beq _rot1
+		cmp #$06
+		beq _rot2
+		cmp #$07
+		beq _rot3
+		cmp #$08
+		beq _rot0
+		jmp .fire
+						
+_left	jsr Timerparallax
+		bcs .fire
+		jsr Shift_left
+    	jmp .fire
+		
+_right	jsr Timerparallax
+		bcs .fire
+		jsr Shift_right
+    	jmp .fire
+				
+_up     jsr Timerparallax
+		bcs .fire
+		jsr Shift_up
+		jsr Print_second_credit
+    	jmp .fire
+		
+_down   jsr Timerparallax
+		bcs .fire
+		jsr Shift_down	
+    	jmp .fire
+		
+_rot0   jsr Timerparallax
+		bcs .fire
+		jsr Shift_left	
+		jsr Shift_up
+		lda colorvar
+		bne +	
+		jsr Clearzonescore
+		jsr Printbestscorename
+		jsr Printbestscore 
+		jsr Printbestround
+		jsr Printtilebestscore
+		jsr Printtilebestscore1
++    	jmp .fire
+    	
+_rot1   jsr Timerparallax
+		bcs .fire
+		jsr Restorecredit
+		jsr Shift_up	
+		jsr Shift_right
+		lda #$01
+		sta colorvar	
+        jmp .fire	
+
+_rot2   jsr Timerparallax
+ 		bcs .fire
+ 		jsr Shift_down
+ 		jsr Shift_right	
+ 		jmp .fire
+_rot3  
+        jsr Timerparallax
+ 		bcs .fire
+ 		jsr Shift_down
+ 		jsr Shift_left				
+.fire	
+		jsr Fire
+		beq +
+		jsr Padfire
+		beq +
+		jmp .loopmenu   
++		jsr Resetirq
+		rts	
+			
+gametile
+        lda $d019
+		and #$01
+		beq .exit4	
+		sta $d019
+		lda ntsc_music
+		beq play_pal_music_menu
+fixit2  lda #$05
+		beq reset2
+		dec fixit2+1
+		jsr $1003 
+		jmp .exit4
+reset2  lda #$05
+		sta fixit2+1
+		bne .exit4
+play_pal_music_menu	
+	    jsr $1003	
+.exit4  jsr Movebonustile
+		lda #$01
+		sta sync1
+		lda $dc0d
+		sta $dd0d
+		jmp $ea81
+Pattmenu  = font+(93*8)
+!zone Shift_left
+Shift_left
+		ldx #$00
+-		lda Pattmenu,x
+		asl
+		rol Pattmenu,x
+		inx
+		cpx #$08
+		bne -
+		rts		
+!zone Shift_right
+Shift_right
+		ldx #$00
+-		lda Pattmenu,x
+		lsr
+		ror Pattmenu,x
+		inx
+		cpx #$08
+		bne -
+		rts	
+!zone Shift_up
+Shift_up
+		lda Pattmenu
+		pha
+		ldx #$00
+-		lda Pattmenu+1,x
+		sta Pattmenu,x
+		inx
+		cpx #$07
+		bne -	
+		pla
+		sta Pattmenu,x
+		rts	
+!zone Shift_down
+Shift_down
+		lda Pattmenu+7
+		pha
+		ldx #$06
+-		lda Pattmenu,x
+		sta Pattmenu+1,x
+		dex
+		bpl -	
+		pla
+		sta Pattmenu
+		rts	
+!zone Shiftpattern
+Shiftpattern
+shift	lda #120
+		dec shift+1
+		bne +
+		lda #120
+		sta shift+1
+		inc parallax
+		lda parallax
+		cmp #9
+		bne +
+		lda #0
+		sta parallax
++		rts
+!zone Timerparallax
+Timerparallax
+time	lda #$02
+		dec time+1
+		bne exitime
+		lda #$02
+		sta time+1
+		clc
+		rts
+exitime sec
+		rts	
+posvideo = $0400+(9*40)+2
+poscolor = $d800+(9*40)+2
+!zone Print_second_credit	
+Print_second_credit
+		ldx #$00
+		ldy #$00
+-		lda credit,x
+		sta posvideo,x
+		tay
+		lda cmapmenu,y
+		sta poscolor,x		
+		lda credit+37,x
+		sta posvideo+(40*1),x
+		tay
+		lda cmapmenu,y
+		sta poscolor+(40*1),x		
+		lda credit+37+37,x
+		sta posvideo+(40*2),x
+		tay
+		lda cmapmenu,y
+		sta poscolor+(40*2),x		
+		lda credit+37+37+37,x
+		sta posvideo+(40*3),x
+		tay
+		lda cmapmenu,y
+		sta poscolor+(40*3),x		
+		lda credit+37+37+37+37,x
+		sta posvideo+(40*4),x
+		tay
+		lda cmapmenu,y
+		sta poscolor+(40*4),x		
+		lda credit+37+37+37+37+37,x
+		sta posvideo+(40*5),x
+		tay
+		lda cmapmenu,y
+		sta poscolor+(40*5),x		
+		lda credit+37+37+37+37+37+37,x
+		sta posvideo+(40*6),x
+		tay
+		lda cmapmenu,y
+		sta poscolor+(40*6),x		
+		lda credit+37+37+37+37+37+37+37,x
+		sta posvideo+(40*7),x
+		tay
+		lda cmapmenu,y
+		sta poscolor+(40*7),x
+		inx
+		cpx #36
+		bne -
+		lda #$00
+		sta colorvar
+		rts	
+!zone Copycredit
+Copycredit
+		ldx #$00
+-		lda $0400,x
+		sta $cc00,x
+		lda $d800,x
+		sta $c900,x
+		lda $0500,x
+		sta $cd00,x
+		lda $d900,x
+		sta $ca00,x
+		lda $0600,x
+		sta $ce00,x
+		lda $da00,x
+		sta $cb00,x
+		inx
+		bne -
+		rts	
+!zone Restorecredit
+Restorecredit
+		ldx #$00
+-		lda $cc00,x
+		sta $0400,x
+		lda $c900,x
+		sta $d800,x
+		lda $cd00,x
+		sta $0500,x
+		lda $ca00,x
+		sta $d900,x
+		lda $ce00,x
+		sta $0600,x
+		lda $cb00,x
+		sta $da00,x
+		inx
+		bne -
+		lda #$00
+		sta colorvar
+		rts	
+!zone Movebonustile
+Movebonustile
+		lda SPRITE4Y
+		cmp #240
+		bcs exitBonustile
+		clc
+		adc #1
+		sta SPRITE4Y
+		rts
+exitBonustile
+		lda #0
+		sta Bonus
+		sta SPRITE4X
+		sta SPRITE4Y
+		jsr Preparebonus
+	    rts  
+!zone Preparebonus
+Preparebonus	     
+        jsr Createbonus
+-		jsr Randomnumber
+		cmp #70
+		bcc -
+		sta SPRITE4X
+-		jsr Randomnumber
+		cmp #80
+		bcs -
+		sta SPRITE4Y
+		rts
+!zone Cheatcode
+Cheatcode
+		lda #$00                  ; set data direction for keyboard
+ 		sta $dc03                 ; PORT B : INPUT
+		lda #$ff
+        sta $dc02                 ; PORT A : OUTPUT
+        lda #%01110111            ; check keyboard for
+        sta $dc00                 ; C= + B
+        lda buttonpress
+        bne +
+        lda $dc01
+        and #%00110000
+        sta $dc01
+        bne +
+        inc buttonpress	
+ 		lda #$01
+ 		sta Unlimitedlive
+ 		jsr Printunlimitedlive
+ 		ldx #$5
+-		inc $d020
+		jsr Wait
+ 		dex
+ 		bne -
+ 		lda #$00
+ 		sta $d020
++		rts  
+Printunlimitedlive
+		ldx #20
+-       lda unlive,x
+        sta $0400+(14*40)+9,x
+        lda #$01
+        sta $d800+(14*40)+9,x
+        dex
+        bpl - 	
+        rts  			
+sync1   
+		!byte 0	
+parallax
+		!byte 0	
+buttonpress
+		!byte 0		   
+Unlimitedlive
+		!byte 0
+colorvar
+		!byte 0		
+unlive
+		!scr "unlimited live active"					 			

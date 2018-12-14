@@ -1,0 +1,367 @@
+!zone Savescore
+Savescore
+		ldy #$00
+-		lda $0400+(14*40)+9,y
+		sec
+		sbc #$a0
+		sta scoreboard,y
+		iny
+		cpy #11
+		bne -
+		ldx #$00
+-		lda hiscore,x
+		sta scoreboard+11,x
+		inx
+		cpx #$07
+		bne -
+		lda round
+		sta scoreboard+11,x
+		inx
+		lda round+1
+		sta scoreboard+11,x
+		inx
+		lda round+2
+		sta scoreboard+11,x
+		rts
+!zone Copyscore
+Copyscore
+		ldx #$00
+-		lda scoreboard+11,x
+		sta hiscore,x
+		inx
+		cpx #$07
+		bne -
+		rts
+Printloadscore
+		ldx	#$00
+-		lda text0400,x
+		beq +
+		sta $0400+(11*40),x
+		inx
+		bne -
++		ldx #$00	
+-		lda text0401,x
+		beq +
+		sta $0400+(13*40),x
+		inx
+		bne -			
++		rts
+!zone Copyfloppy
+Copyfloppy
+		ldx #$00
+-		lda floppy,x
+		sta $3800+(17*8),x
+		inx
+		cpx #128+16
+		bne -
+		rts
+!zone Printfloppy	
+Printfloppy		
+		ldx #$00
+-		lda floppyline0,x
+		sta $0400+(18*40)+12,x
+		lda floppyline1,x
+		sta $0400+(19*40)+12,x
+		lda floppyline2,x
+		sta $0400+(20*40)+12,x
+		lda floppyline3,x
+		sta $0400+(21*40)+12,x
+		lda floppyline4,x
+		sta $0400+(22*40)+12,x
+		lda #$03
+		sta $d800+(18*40)+12,x
+		sta $d800+(19*40)+12,x
+		sta $d800+(20*40)+12,x
+		sta $d800+(21*40)+12,x
+		sta $d800+(22*40)+12,x
+		inx
+		cpx #5
+		bne -
+		rts
+!zone Highscore_save
+Highscore_save
+		sei
+		lda #$1b
+  		sta $d011
+	    lda #$7f
+		sta $dc0d
+		lda #$00
+		sta $d418
+		sta $d019
+		sta $d01a
+  		lda #$37
+  		sta $01
+  		jsr $ffe7
+  		lda #filename_end-scratchname  ; length filename
+  		ldx #<scratchname         ; low-byte filename
+  		ldy #>scratchname         ; high-byte filename
+  		jsr $ffbd                 ; kernal SETNAM (filename)
+  		lda #$01                  ; file no. = 1
+  		ldx $ba
+  		bne +
+  		ldx #$08
++  		ldy #$0f                  ; sec. address = 15
+  		jsr $ffba                 ; kernal SETFLS / parameter for OPEN
+  		jsr $ffc0                 ; kernal OPEN
+  		lda #$01                  ; file no. = 1
+  		jsr $ffc3                 ; kernal CLOSE
+		lda #filename_end-filename
+  		ldx #<filename
+  		ldy #>filename
+  		jsr $ffbd
+  		lda #$00
+  		ldx $ba
+  		bne +
+  		ldx #$08
++		ldy #$00
+  		jsr $ffba
+  		lda #<file_start
+  		sta $c1
+  		lda #>file_start
+  		sta $c2
+  		ldx #<file_end
+  		ldy #>file_end
+  		lda #$c1
+  		jsr $ffd8
+  		lda #$36
+  		sta $01
+ 		lda #$1b
+  		sta $d011	
+  		cli
+  		rts
+!zone Highscore_load
+Highscore_load
+		lda #filename_end-filename
+		ldx #<filename
+		ldy #>filename
+		jsr $ffbd
+		lda #$01
+		ldx $ba
+		bne +
+		ldx #$08
++       ldy #$00
+		jsr $ffba		
+		ldx #<load_adress
+		ldy #>load_adress
+		lda #$00
+		jsr $ffd5
+        rts           ; no error handling just don't care =)
+!zone Clearzonescore
+Clearzonescore
+		ldx #$00
+-		lda #93
+		sta $0400+(8*40)+2,x
+		sta $0400+(9*40)+2,x
+		sta $0400+(10*40)+2,x
+		sta $0400+(11*40)+2,x
+		sta $0400+(12*40)+2,x
+		sta $0400+(13*40)+2,x
+		sta $0400+(14*40)+2,x
+		sta $0400+(15*40)+2,x
+		sta $0400+(16*40)+2,x
+		lda #6
+		sta $d800+(8*40)+2,x
+		sta $d800+(9*40)+2,x
+		sta $d800+(10*40)+2,x
+		sta $d800+(11*40)+2,x
+		sta $d800+(12*40)+2,x
+		sta $d800+(13*40)+2,x
+		sta $d800+(14*40)+2,x
+		sta $d800+(15*40)+2,x
+		sta $d800+(16*40)+2,x
+		inx
+		cpx #36
+		bne -
+		rts
+!zone Printbestscorename
+Printbestscorename		
+x=8		
+		ldx #0
+-       lda scoreboard,x
+		cmp #$44
+		bcs +
+		tay
+        clc
+		adc #$a0
+		sta $0400+(15*40)+x,x
+		tya
+		clc
+		adc #$a0+$10
+		sta $0400+(16*40)+x,x 
+		lda #$01
+		sta $d800+(15*40)+x,x
+		lda #$0a
+		sta $d800+(16*40)+x,x
+		inx
+		cpx #11
+		bne -
+		lda #$01
+		sta colorvar
++		rts
+!zone Printbestscore
+Printbestscore	
+		ldx #$00
+.l1		lda hiscore,x
+		clc
+		adc #182
+		sta $0400+(15*40)+25,x
+		lda #1
+		sta $d800+(15*40)+25,x
+		lda hiscore,x
+		clc
+		adc #198
+		sta $0400+(16*40)+25,x
+		lda #10
+		sta $d800+(16*40)+25,x
+		inx
+		cpx #7
+		bne .l1
+    	rts	
+!zone Printbestround
+Printbestround
+		ldx #$00
+-		lda scoreboard+11+7,x
+		clc
+		adc #182
+		sta $0400+(15*40)+20,x
+		lda #1
+		sta $d800+(15*40)+20,x
+		lda scoreboard+11+7,x
+		clc
+		adc #198
+		sta $0400+(16*40)+20,x
+		lda #$0a
+		sta $d800+(16*40)+20,x
+		inx
+		cpx #3
+		bne -
+		rts	
+!zone Printtilebestscore
+Printtilebestscore
+		ldx #0
+-       lda bestscore,x
+		tay
+		cmp #93
+		beq ++
+		cmp #$71
+		bcs +
+		clc
+		adc #$3f
+		bne ++
++       clc
+		adc #$3f+$10		
+++		sta $0400+(9*40)+11,x
+		tya
+		cmp #93
+		beq ++
+		cmp #$71
+		bcs +
+		clc
+		adc #$4f
+		bne ++
++		clc 
+		adc #$4f+$10
+++		sta $0400+(10*40)+11,x 
+		lda #$01
+	    sta $d800+(9*40)+11,x
+		lda #$0d
+		sta $d800+(10*40)+11,x
+		inx
+		cpx #18
+		bne -
+		lda #6
+		sta $d800+(9*40)+16
+		sta $d800+(10*40)+16
+		sta $d800+(9*40)+16+5
+		sta $d800+(10*40)+16+5
++		rts	
+xx=9
+!zone Printtilebestscore1
+Printtilebestscore1
+		ldx #0
+.p0     lda bestscore1,x
+		tay
+		cmp #93
+		beq ++
+		cmp #$71
+		bcs +
+		clc
+		adc #$3f
+		bne ++
++       clc
+		adc #$3f+$10		
+++		sta $0400+(12*40)+xx,x
+		tya
+		cmp #93
+		beq ++
+		cmp #$71
+		bcs +
+		clc
+		adc #$4f
+		bne ++
++		clc 
+		adc #$4f+$10
+++		sta $0400+(13*40)+xx,x 
+		lda #$01
+		sta $d800+(12*40)+xx,x
+		lda #$0d
+		sta $d800+(13*40)+xx,x
+		inx
+		cpx #21+1
+		bne .p0
+		ldx #$00
+		lda #6
+		tay
+-		sta $d800+(13*40)+13,x
+		sta $d800+(12*40)+13,x
+		sta $d800+(13*40)+13,x
+		sta $d800+(12*40)+13,x
+		inx
+		cpx #6
+		bne -
+		txa
+		clc
+		adc #18
+		tax
+		tya
+		sta $d800+(12*40),x
+		sta $d800+(13*40),x
+		sta $d800+(12*40)+1,x
+		sta $d800+(13*40)+1,x
+		lda #1
+		sta colorvar
++		rts		          	          
+load_adress           = scoreboard
+file_start            = scoreboard
+file_end              = scoreboard_end		
+scratchname
+        !text "S:"
+filename
+	    !text "HISCORE"
+filename_end
+scoreboard 
+		!fill 24,$ff
+scoreboard_end	
+text0400
+		!scr "   break64 loading hiscore wanax 2015",$00
+text0401
+		!scr "   no complaints will be considered:)",$00
+bestscore
+		!text "today"
+		!byte 93
+		!text "best"
+		!byte 93
+		!text "hiscore"
+bestscore1
+		!text "name"
+		!byte 93,93,93,93,93,93
+		!text "round"
+		!byte 93,93
+		!text "score"
+				
+floppyline0	!byte 17,18,19,29,20	
+floppyline1	!byte 21,22,23,29,24
+floppyline2	!byte 25,26,27,29,28
+floppyline3 !byte 29,30,31,29,32
+floppyline4 !byte 33,33,33,33,34
+		

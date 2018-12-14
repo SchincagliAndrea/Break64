@@ -1,0 +1,26 @@
+tables_screen_row:
+	!word 0
+	!word 40
+	!word 80
+	!word 120
+	!word 160
+	!word 200
+	!word 240
+	!word 280
+	!word 320
+	!word 360
+	!word 400
+	!word 440
+	!word 480
+	!word 520
+	!word 560
+	!word 600
+	!word 640
+	!word 680
+	!word 720
+	!word 760
+	!word 800
+	!word 840
+	!word 880
+	!word 920
+	!word 960

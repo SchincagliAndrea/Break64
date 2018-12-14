@@ -1,0 +1,584 @@
+SCREEN_COLOR =$d800
+menumap  	 =$0400
+!zone Background
+Background
+		
+		lda #$0b
+		sta $f0
+		jsr Randomnumber
+		and #$0f
+		sta PATT
+Background1	
+		lda #$0b
+		sta $f0			
+		lda #<$0400+(40*1)+1
+		sta plot_tile+1
+		lda #>$0400+(40*1)+1
+		sta plot_tile+2
+		lda #<$0400+(40*2)+1
+		sta plot_tile1+1
+		lda #>$0400+(40*2)+1
+		sta plot_tile1+2
+		lda #41
+		sta SC_11
+		sta $f1
+		lda #44
+		sta SC_21
+loop		
+		ldx #$00 
+-		ldy $f1
+		tya
+		jsr plot_tile
+		iny
+		tya
+		inx
+		jsr plot_tile
+		iny
+		tya
+		inx
+		jsr plot_tile
+		inx
+		cpx #27
+		bne -
+		dec $f0
+		bmi +
+		jsr addy
+		jmp loop
++		rts
+plot_tile
+		sta $0400+(40*1)+1,x
+		clc
+		adc #3
+plot_tile1		
+		sta $0400+(40*2)+1,x
+		rts
+addy
+		lda plot_tile+1
+		clc
+		adc #80
+		sta plot_tile+1
+		bcc +
+		inc plot_tile+2
++ 		lda plot_tile1+1
+		clc
+		adc #80
+		sta plot_tile1+1
+		bcc +
+		inc plot_tile1+2
++		rts	
+!zone Colorbackground
+Colorbackground
+		lda #$28
+		sta $02
+		lda #$d8
+		sta $03
+		ldx #24
+.loop	ldy #$01
+backcolor
+    	lda #$06
+		sta ($02),y
+		iny
+		cpy #28
+		bne backcolor
+		lda $02
+		clc
+		adc #40
+		sta $02
+		bcc +
+		inc $03
++		dex 
+		bpl .loop		 
+		rts
+!zone Makescreen
+Makescreen
+	    ldx SCR
+	    lda maxblock,x
+	    sta BLOCKS
+		lda levelLO,x
+		ldy levelHI,x
+		jsr DECRUNCH
+		jsr Copylevel
+		rts	
+!zone Hiscoremenu
+Hiscoremenu
+		lda #<hiscoremenu
+		ldy #>hiscoremenu
+		jsr DECRUNCH
+		jsr Copylevel
+		rts		
+!zone Preparegamefont
+Preparegamefont
+		lda #<fontgame
+		ldy #>fontgame
+		jsr DECRUNCH
+		rts		
+!zone Preparemenufont
+Preparemenufont
+		lda #<fontmenu
+		ldy #>fontmenu
+		jsr DECRUNCH
+		rts					
+!zone Copylevel
+Copylevel
+        lda #16
+        sta $14    
+		lda #$00
+		sta $10
+		lda #$c0		
+		sta $11	
+		lda #$29
+		sta $12
+		lda #$04
+		sta $13		
+.loop		
+		ldy #$00
+-		lda ($10),y
+		jsr Checkcar
+		bcs +
+		sta ($12),y
+		jsr Colorblock
++		iny
+		cpy #27
+		bne -
+		lda $10
+		clc
+		adc #27
+		sta $10
+		bcc +
+		inc $11
++		lda $12
+		clc
+		adc #40
+		sta $12
+		bcc +
+		inc $13
++		dec $14
+		bne .loop
+		rts
+Checkcar
+		cmp #144
+		bne +
+		sec
+		rts
++       clc
+		rts
+Colorblock
+		pha
+		lda $12
+		sta $15
+		lda $13
+		clc 
+		adc #$d4
+		sta $16
+		pla
+		tax
+		lda color,x
+		sta ($15),y
+		rts
+;***************************************
+; 
+;   Visualizza il menu dello score 
+;
+;***************************************	
+!zone Menuscore
+Menuscore
+ 		lda #$ff
+		sta Posname
+		lda #$0 		
+        sta CharposX
+		sta CharposY
+		sta $d015
+ 		tax
+ 		tay
+ 		jsr $1000
+		jsr Initirq2
+		jsr Copyfloppy
+.loopjoy
+        lda #$00
+		sta sync
+		lda sync
+.sync	cmp sync
+		beq .sync
+wait    lda #$04
+		dec wait+1
+		bne +	
+		lda #$04
+		sta wait+1	
+		jsr Readkeyboard
++       jmp .loopjoy
+		
+irqR2   lda $d019
+		and #$01
+		beq .exit3
+		lda #$01
+		sta $d019
+		lda ntsc_music
+		beq play_pal_music
+fixit1  lda #$06
+		beq reset1
+        jsr $1003 
+		dec fixit1+1
+		jmp colroll
+reset1  lda #$06
+		sta fixit1+1
+		bne colroll
+play_pal_music		
+	    jsr $1003		
+colroll	lda #$01
+		beq +
+		dec colroll+1
+		jmp .exit3
++		lda #$01
+		sta colroll+1			
+		jsr Colroll
+		jsr Tocols
+		jsr Tocols1
+		jsr Flashchar
+		lda #$01
+		sta sync
+	    jsr Readjoy
+.exit3	lda $dc0d
+		sta $dd0d
+    	jmp $ea81	
+Colroll
+		lda flashcols+0
+		sta colstore
+		ldx #0
+wrapb	lda flashcols+1,x
+		sta flashcols+0,x
+		inx
+		cpx #$28
+		bne wrapb
+		lda colstore
+		sta flashcols+$28
+		rts
+Tocols
+		ldx #$00
+copytoscreen
+  		lda flashcols,x
+		sta $d80e+(2*40),x
+		sta $d80e+(3*40),x
+		inx
+		cpx #$05
+		bne copytoscreen
+		rts
+Tocols1
+		ldx #$00
+copytoscreen1
+  		lda flashcols,x
+		sta $d80a+(2*40),x
+		sta $d80a+(3*40),x
+		inx
+		cpx #$03
+		bne copytoscreen1
+		rts
+!zone Flashchar
+Flashchar
+		lda CharposY
+		cmp #$00
+		beq line0
+		cmp #$01
+		beq line1
+		cmp #$02
+		beq line2
+		rts
+Selcolor		
+        ldx flashcols
+		inx
+		txa
+		ldx CharposX
+		rts			
+line0	jsr Selcolor	
+		sta $d800+(5*40)+6,x			
+		sta $d800+(6*40)+6,x
+		rts	
+line1	jsr Selcolor		
+		sta $d800+(8*40)+6,x			
+		sta $d800+(9*40)+6,x
+		rts	
+line2	jsr Selcolor		
+		sta $d800+(11*40)+6,x			
+		sta $d800+(12*40)+6,x
+		rts							
+!zone Readjoy
+Readjoy	
+slowjoy	lda #$04
+		dec slowjoy+1
+		bne return
+		lda #$04
+		sta slowjoy+1
+		jsr Getcontrols
+		lda joystick
+		and #JOY_FIRE
+		beq joyright
+		lda Posname
+		cmp #10
+		beq return
+		inc Posname
+		jsr Loadchar
+return	rts
+joyright		
+		lda joystick
+        and #JOY_RIGHT
+        beq joyleft
+        lda CharposX
+        cmp #16
+        beq +
+        clc
+        adc #$02
+        sta CharposX
+        jsr restlineX
+        rts
+joyleft
+		lda joystick
+        and #JOY_LEFT
+        beq joydown
+        lda CharposX
+        cmp #0
+        beq +
+        sec
+        sbc #$02
+        sta CharposX
+        jsr restlineX
++		rts 
+joydown
+        lda joystick
+        and #JOY_DOWN
+        beq joyup
+        lda CharposY
+        cmp #2
+        beq +
+        inc CharposY
+        jsr RestorelineX
++       rts   
+joyup
+        lda joystick
+        and #JOY_UP
+        beq +
+        lda CharposY
+        cmp #0
+        beq +
+        dec CharposY
+        jsr RestorelineX
++		rts          
+restlineX        
+        lda CharposY
+        cmp #0
+        beq restline0
+        cmp #1
+        beq restline1
+        cmp #2
+        beq restline2
+        rts
+restline0        
+        jsr RestorecolorX
+        rts
+restline1
+		jsr RestorecolorX1
+		rts   
+restline2
+		jsr RestorecolorX2
+		rts        		     
+RestorelineX   
+		cmp #0
+		beq RestorecolorX
+		cmp #1
+		beq RestorecolorX1
+		cmp #2
+		beq RestorecolorX2
+		rts
+RestorecolorX
+	    lda #$01
+		sta $d800+(5*40)+6,x
+		lda #$0d
+		sta $d800+(6*40)+6,x
+		rts
+RestorecolorX1
+	    lda #$01
+		sta $d800+(8*40)+6,x
+		lda #$0d
+		sta $d800+(9*40)+6,x
+		rts	
+RestorecolorX2
+	    lda #$01
+		sta $d800+(11*40)+6,x
+		lda #$0d
+		sta $d800+(12*40)+6,x
+		rts	
+;------------------------------------------------
+; preleva carattere sotto il cursore lampeggiante
+;------------------------------------------------
+!zone Loadchar
+Loadchar
+		ldy Posname
+		lda $0400+(14*40)+9,y
+		sta buffer_scr_hi,y
+		lda $0400+(15*40)+9,y
+		sta buffer_scr_lo,y
+		lda CharposY
+        cmp #0
+        beq readcharline0
+        cmp #1
+        beq readcharline1
+        cmp #2
+        beq readcharline2
+        rts	
+readcharline0	
+		lda $0400+(5*40)+6,x	
+		sta $0400+(14*40)+9,y
+		lda $0400+(6*40)+6,x
+		sta $0400+(15*40)+9,y
+		lda #$01
+		sta $d800+(14*40)+9,y
+		lda #$0d
+		sta $d800+(15*40)+9,y
+		rts	
+readcharline1   	
+		lda $0400+(8*40)+6,x			
+		sta $0400+(14*40)+9,y
+		lda $0400+(9*40)+6,x			
+		sta $0400+(15*40)+9,y
+		lda #$01
+		sta $d800+(14*40)+9,y
+		lda #$0d
+		sta $d800+(15*40)+9,y
+		rts	
+readcharline2		
+		lda $0400+(11*40)+6,x			
+		sta $0400+(14*40)+9,y
+		lda $0400+(12*40)+6,x			
+		sta $0400+(15*40)+9,y
+		lda #$01
+		sta $d800+(14*40)+9,y
+		lda #$0d
+		sta $d800+(15*40)+9,y
+		rts	
+;----------------------------------------------
+;  disegna il campo di gioco
+;----------------------------------------------		
+!zone Printgamescreen
+Printgamescreen
+		ldx #$00
+-		lda map,x
+		sta $0400,x
+		lda map+200,x
+		sta $0400+200,x
+		lda map+400,x
+		sta $0400+400,x
+		lda map+600,x
+		sta $0400+600,x
+		lda map+800,x
+		sta $0400+800,x
+		lda cmap,x
+		sta $d800,x
+		lda cmap+200,x
+		sta $d800+200,x
+		lda cmap+400,x
+		sta $d800+400,x
+		lda cmap+600,x
+		sta $d800+600,x
+		lda cmap+800,x
+		sta $d800+800,x
+		inx
+		cpx #200
+		bne -  
+		rts 
+;----------------------------------------------
+;  disegna la schermata dei crediti
+;----------------------------------------------			
+!zone Printmenuscreen
+Printmenuscreen
+        lda #<menumap1024
+        ldy #>menumap1024
+        jsr DECRUNCH
+        ldx #$00
+-       lda menumap,x 
+	    tay
+	    lda cmapmenu,y
+	    sta SCREEN_COLOR,x   	          
+	    lda menumap+($c8),x 
+	    tay
+	    lda cmapmenu,y
+	    sta SCREEN_COLOR+($c8),x               
+	    lda menumap+($c8*2),x 
+	    tay
+	    lda cmapmenu,y
+	    sta SCREEN_COLOR+($c8*2),x                  
+	    lda menumap+($c8*3),x 
+	    tay
+	    lda cmapmenu,y
+	    sta SCREEN_COLOR+($c8*3),x	              
+	    lda menumap+($c8*4),x
+	    tay
+	    lda cmapmenu,y
+	    sta SCREEN_COLOR+($c8*4),x         
+	    inx
+	    cpx #$c9
+	    bne -
+	    rts  
+!zone Readkeyboard
+Readkeyboard
+		lda #$00           ; set data direction for keyboard
+        sta $dc03          ; PORT B : INPUT
+		lda #$ff           ; PORT A : OUTPUT
+		sta $dc02          ; check keyboard for return
+		lda #$fe           
+		sta $dc00
+	    lda $dc01
+    	cmp #%11111101     ; 11111101 key RETURN
+		bne delete         ; 11111110 KEY DELETE
+		jsr Savescore
+		jsr Printfloppy	
+		jsr Highscore_save
+		lda SCR     ; controllo: se è l'ultimo livello giocato passa al game over!
+		cmp #35
+		bcc +
+		lda BLOCKS
+		bne +
+		jmp Endgame     
++		jmp Go
+delete	lda $dc01
+		cmp #%11111110
+		bne +
+		jsr Restorebuffername
+		dec Posname
++		rts	
+Restorebuffername
+		ldy Posname
+		bmi ++
+		lda buffer_scr_hi,y
+		sta $0400+(14*40)+9,y
+		lda buffer_scr_lo,y	
+		sta $0400+(15*40)+9,y	
+		lda #$06
+		sta $d800+(14*40)+9,y
+		lda #$06
+		sta $d800+(15*40)+9,y
++		rts 
+++      lda #$00
+		sta Posname
+		rts          			 			        			 			
+sync
+		!byte 0   		        	 											     			
+patternhi
+		!byte 41,47,53,74,41,47,53,74;59
+patternlo
+		!byte 44,50,56,77,44,50,56,77;62
+buffer_scr_hi
+		!byte 0,0,0,0,0,0,0,0,0,0,0
+buffer_scr_lo
+		!byte 0,0,0,0,0,0,0,0,0,0,0		
+colstore
+    	!byte $00
+CharposX
+		!byte $00
+CharposY
+		!byte $00
+Posname
+		!byte $ff					
+flashcols
+ 		!byte $02,$02,$04,$04,$0e,$0e,$05,$05,$03,$03,$0d,$0d,$01,$01,$01,$01
+		!byte $0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$01,$01,$01,$01,$0d,$0d,$03,$03
+		!byte $05,$05,$0e,$0e,$04,$04,$02,$02,$02
+
+		

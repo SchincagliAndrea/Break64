@@ -1,0 +1,181 @@
+!zone Endlevel35
+Endlevel35
+		lda SCR
+		cmp #35
+		bcc +
+		lda BLOCKS
+		bne +
+		jmp Endgame
++		rts
+!zone Endgame	 
+Endgame
+		jsr Resetirq
+        lda #$0b
+		sta $d011
+		lda #$00
+		sta $d020
+		sta $d021
+		tax
+		tay
+		lda #$02
+		jsr $1000
+		lda #%00010000
+		sta $d015
+		sta $d01c
+		ldx #9
+		stx $d025		;sprite mcolor 1
+		ldx #15
+		stx $d026       ;sprite mcolor 2
+		jsr Clearscreen1
+		jsr Preparemenufont
+		jsr Bank0
+		jsr Preparebonus
+		sei
+        ldy #$7f    ; $7f = %01111111
+        sty $dc0d   ; Turn off CIAs Timer interrupts ($7f = %01111111)
+        sty $dd0d   ; Turn off CIAs Timer interrupts ($7f = %01111111)
+        lda $dc0d   ; by reading $dc0d and $dd0d we cancel all CIA-IRQs in queue/unprocessed
+        lda $dd0d   ; by reading $dc0d and $dd0d we cancel all CIA-IRQs in queue/unprocessed
+        lda #$01    ; Set Interrupt Request Mask...
+        sta $d01a   ; ...we want IRQ by Rasterbeam (%00000001)
+		lda #$1b    
+		sta $d011
+        lda #<irqend   ; point IRQ Vector to our custom irq routine
+        ldx #>irqend
+        sta $0314    ; store in $314/$315
+        stx $0315
+        lda #$34    ; trigger interrupt at row zero
+        sta $d012
+        cli
+		ldx #$27
+-		lda titlescreentext,x
+		sta $0400+(40*1),x
+		lda titlescreentext+40,x
+		sta $0400+(40*3),x
+		lda titlescreentext+80,x
+		sta $0400+(40*5),x
+    	lda titlescreentext+120,x
+		sta $0400+(40*7),x
+		lda titlescreentext+160,x
+		sta $0400+(40*9),x
+		lda titlescreentext+200,x
+		sta $0400+(40*11),x
+		dex
+		bpl -
+		ldx #$27
+-		lda titlescreentext+240,x
+		sta $0400+(40*13),x
+		lda titlescreentext+280,x
+		sta $0400+(40*15),x
+		lda titlescreentext+320,x
+		sta $0400+(40*16),x
+		dex
+		bpl -
+		lda #$1b
+		sta $d011
+.loopgameover       
+        lda #$00
+		sta sync1
+		lda sync1
+.sync1	cmp sync1
+		beq .sync1
+cycleCnt
+		lda #$02
+		dec cycleCnt+1            
+        bpl irq_Exit                    
+        lda #$02                          
+        sta cycleCnt+1 
+		jsr Colrolls
+irq_Exit    		
+		jsr Tocolls
+		jsr Fire
+		beq +
+		jmp .loopgameover
++		jmp Go		
+!zone Clearscreen1
+Clearscreen1		
+        ldx #00
+- 		lda #$20    
+        sta SCREEN_CHAR,x
+	    sta SCREEN_CHAR+200,x
+        sta SCREEN_CHAR+400,x   
+        sta SCREEN_CHAR+600,x   
+        sta SCREEN_CHAR+800,x 
+        inx
+        cpx #200
+        bne -	
+        rts
+irqend 
+		lda $d019
+		and #$01
+		beq .exit4	
+		sta $d019
+		lda ntsc_music
+		beq play_pal_music_gover
+fixit3  lda #$05
+		beq reset3
+		dec fixit3+1
+		jsr $1003 
+		jmp .exit4
+reset3  lda #$05
+		sta fixit3+1
+		bne .exit4
+play_pal_music_gover
+	    jsr $1003	
+.exit4  jsr Movebonustile
+		lda #$01
+		sta sync1
+		lda $dc0d
+		sta $dd0d
+		inc $d019
+		jmp $ea81 
+Colrolls
+		lda colors1+0
+		sta colstore1
+		ldx #0
+.wrapb	lda colors1+1,x
+		sta colors1+0,x
+		inx
+		cpx #$28
+		bne .wrapb
+		lda colstore1
+		sta colors1+$28
+		rts		  
+Tocolls
+		ldx #$00
+.copytoscreen
+  		lda colors1,x
+		sta $d800+(40*1),x		
+		sta $d801+(40*3),x		
+		sta $d802+(40*5),x    	
+		sta $d803+(40*7),x		
+		sta $d804+(40*9),x		
+		sta $d805+(40*11),x
+		sta $d806+(40*13),x	 
+		sta $d807+(40*15),x	 
+		sta $d808+(40*16),x
+		inx
+		cpx #$28
+		bne .copytoscreen
+		rts
+;           000000000011111111122222222223333333333
+;           012345678912345678901234567890123456789
+titlescreentext
+ 	 !scr "            congratulations.            "
+	 !scr "        you have beat break64!          "
+	 !scr "      stay tuned for more games         "
+	 !scr "      from wanax and saul cross.        "
+	 !scr "         while you wait for             "
+	 !scr "     another production from us,        "
+	 !scr "   are you ready for another round?     "
+	 !scr "                                        "
+	 !scr "        press fire to restart.          "
+colstore1
+	!byte 0	       
+colors1
+	!byte $01,$01,$03,$03,$0E,$0E,$06,$06
+ 	!byte $06,$06,$0E,$0E,$03,$03,$01,$01
+ 	!byte $03,$03,$0E,$06,$06,$0E,$03,$03
+ 	!byte $01,$01,$03,$03,$0E,$0E,$06,$06
+ 	!byte $06,$06,$0E,$0E,$03,$03,$01,$01
+			   	
